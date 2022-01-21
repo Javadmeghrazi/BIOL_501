@@ -23,7 +23,7 @@ Glide_mis_mean <- mean (Glide_mis, na.rm = TRUE)
 Glide_mis_sd <- sqrt (sum ((Glide_mis[!is.na(Glide_mis)] - Glide_mis_mean)^2)/(length (Glide_mis[!is.na(Glide_mis)])-1))
 GLide_mis_SE <- Glide_mis_sd / sqrt(length (Glide_mis[!is.na(Glide_mis)]))
 
-# Anolis lizards in a data frame                     
+# Anolis lizards in a data frame ----------------------------------                     
 anolis <- read.csv ("anolis.csv")                                    
 anolis$Ecomorph [which (anolis$Ecomorph == "Trunk-Crown " )] <- "Trunk-Crown"
 # striping the spaces automatically
