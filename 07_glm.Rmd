@@ -1,0 +1,41 @@
+---
+title: "07_generalized linear model"
+author: "Javad"
+date: "3/3/2022"
+output: html_document
+---
+```{r}
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg", "bbmle"), library, character.only = TRUE)
+
+```
+```{r}
+#Q1
+sparrow <- read.csv ("songsparrow.csv", strip.white = TRUE)
+#Q2
+sparrow$year <- factor (sparrow$year)
+#Q4
+ggplot (data = sparrow, aes (x= tarsus, y = survival)) +
+  geom_point()+
+  geom_smooth (method = "lm")
+#Q5
+z <- glm (data = sparrow, survival ~ tarsus, family = binomial (link = "logit"))
+visreg (z)
+summary (z)
+predict <- predict (z , newdata = data.frame(tarsus = 20.5))
+# the equation is logit (p) = 24.63 - 1.26 * tarsus
+coef <- exp(predict)/(1+exp(predict))
+# Q10
+x <-  - coef(z)[1]/coef(z)[2]
+#Q11
+confint (z)
+#Q12
+z0 <- glm (data = sparrow, survival ~ 1, family = binomial (link = "logit"))
+anova(z, test = "Chisq")
+```
+Horseshoe Crabs
+``` {r}
+crab <- read.csv ("satellites.csv", strip.white = TRUE)
+str(crab)
+glimpse(crab)
+z1 <- glm (data = crab, nsatellites ~ width.cm, family =  poisson (link = "log"))
+```

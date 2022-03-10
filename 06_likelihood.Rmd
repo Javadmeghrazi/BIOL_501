@@ -1,0 +1,92 @@
+---
+title: "06_likelihood"
+author: "Javad"
+date: "2/17/2022"
+output: html_document
+---
+
+```{r}
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg", "bbmle"), library, character.only = TRUE)
+#Q1
+dbinom (5, prob = 0.5, size = 10)
+#Q2
+dbinom (10, prob = 0.512, size = 20)
+#Q3
+boys <- 0:6
+plot (dbinom (boys, prob = 0.512, size = 6) ~ boys)
+#Q4
+dgeom (10, p = 0.1)
+#Q5
+sum (dgeom (0:5, p = 0.1))
+#Q6
+dexp (2, rate = 2 )
+#Q7
+plot (dexp (seq (0, 5, by = 0.1), rate = 2) ~seq (0, 5, by = 0.1))
+y <- dexp (seq (0, 5, by = 0.1))
+x <- seq (0, 5, by = 0.1)
+sim <- data.frame(x, y)
+
+ggplot (data = sim, aes (y = y, x = x))+
+  geom_line()
+```
+Left handed flowers
+```{r}
+#Q1
+p = seq (0.01,0.99, by = 0.01)
+#Q2&3
+plot (log(dbinom (6, size = 27, prob = p)) ~ p, type = "l" )
+#finding the maximum likelihood estimation
+p[which (log(dbinom (6, size = 27, prob = p)) == max (log(dbinom (6, size = 27, prob = p))))]
+#Q4
+p = seq (0.001,0.999, by = 0.001)
+#Q6
+log(dbinom (6, size = 27, prob = p))
+#Q7
+nlf <- function (p) {-dbinom (6, size = 27, prob = p, log = TRUE)}
+z  <- mle2 (nlf, start = list (p = 0.5))
+summary (z)
+plot (profile (z))
+confint (z)
+#Q8
+Lfull <- max(log(dbinom (6, size = 27, prob = p)))
+Lnull <- log(dbinom (6, size = 27, prob = 0.25))
+G <- 2 *  (Lfull - Lnull)
+#Q10
+pchisq (G, 1)
+#Q11 (I should keep working on it)
+chisq.test(0.222, 0.25)
+```
+Counting elephant
+```{r}
+#Q1
+n <- (74-27):200
+plot (log (dhyper(15, m = 27 , n, k = 74))~ n )
+answer <- 27+ n[which (log (dhyper(15, m = 27 , n, k = 74)) == max(log (dhyper(15, m = 27 , n, k = 74))))]
+#Q2 (Why it does not work?)
+nlf2 <- function (n) {- dhyper(15, m = 27 , n, k = 74, log = TRUE) }
+z2 <- mle2(nlf2, start = list (n = 80))
+summary 
+```
+Voyaging voles
+```{r}
+vole <- read.csv ("vole.csv", strip.white = TRUE)
+#Q1
+tabvole <- table (vole$dispersal)
+table (vole$dispersal, vole$sex)
+#Q2 & 3
+pCap <- seq (0.01,1.0, by = 0.001)
+
+pDis <- data.frame(d0 = pCap, d1= pCap *(1-pCap), d2= pCap *(1-pCap)^2) %>% 
+  mutate( loglike = log (d0^tabvole[[1]]*d1^tabvole[[2]]*d2^tabvole[[3]]))
+        
+plot (data = pDis, loglike ~ d0, type = "l")
+pDis %>% filter (loglike == max (loglike))
+
+nlf2 <- function (p){
+  log (p^123*(p*(1-p))^20*(p*(1-p)^2)^2)
+       }
+z  <- mle2 (nlf2, start = list (p = 0.5))
+
+# Q4 &5
+dgeom (0:5, p = 0.858 ) * 145
+```
