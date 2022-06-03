@@ -1,0 +1,10 @@
+---
+title: "model selection"
+author: "Javad"
+date: "4/3/2022"
+output: html_document
+---
+
+```{r}
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg", "bbmle"), library, character.only = TRUE)
+```

@@ -69,7 +69,7 @@ summary
 ```
 Voyaging voles
 ```{r}
-vole <- read.csv ("vole.csv", strip.white = TRUE)
+vole <- read.csv ("data/vole.csv", strip.white = TRUE)
 #Q1
 tabvole <- table (vole$dispersal)
 table (vole$dispersal, vole$sex)
@@ -85,8 +85,30 @@ pDis %>% filter (loglike == max (loglike))
 nlf2 <- function (p){
   log (p^123*(p*(1-p))^20*(p*(1-p)^2)^2)
        }
-z  <- mle2 (nlf2, start = list (p = 0.5))
-
+suppressWarnings(
+  z  <- mle2 (nlf2, start = list (p = 0.5))
+)
 # Q4 &5
 dgeom (0:5, p = 0.858 ) * 145
+```
+bees
+```{r}
+bees <- read.csv ("data/bees.csv", strip.white = TRUE)
+ggplot (data = bees, aes (x = hours))+
+          geom_histogram(bins  = 15, aes(y = ..density..))
+
+rate = seq (0.001, 0.1, by = 0.001)
+loglike = vector()
+for (i in 1:length (rate)){
+  loglike[i] = sum (dexp (bees$hours, rate = rate[i], log = TRUE))
+  
+}
+plot (rate, loglike, type = "l")
+pNegLogLike <- function(rate){-sum(dexp(bees$hours, rate=rate, log=TRUE))}
+suppressWarnings(
+  z <- mle2(pNegLogLike, start=list(rate = 1))
+  )
+summary(z)
+profile (z)
+confint (profile (z), method = "uniroot")
 ```

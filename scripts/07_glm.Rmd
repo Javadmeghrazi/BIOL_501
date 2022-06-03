@@ -1,0 +1,70 @@
+---
+title: "07_generalized linear model"
+author: "Javad"
+date: "3/3/2022"
+output: html_document
+---
+```{r, message=FALSE, echo=FALSE}
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg", "bbmle"), library, character.only = TRUE)
+
+```
+
+```{r}
+#Q1
+sparrow <- read.csv ("D:/courses_2022_sping/Quantitative methods_ Dolph/BIOL_501/data/songsparrow.csv", strip.white = TRUE)
+
+#Q2
+sparrow$year <- factor (sparrow$year)
+#Q4
+ggplot (data = sparrow, aes (x= tarsus, y = survival)) +
+  geom_jitter(height = 0.04)+
+  geom_smooth(method = "loess", size = 1, col = "black", se = TRUE) 
+  
+#Q5
+z <- glm (data = sparrow, survival ~ tarsus, family = binomial (link = "logit"))
+visreg (z)
+# what is y-axis (f(trsus))
+summary (z)
+predict <- predict (z , newdata = data.frame(tarsus = 20.5))
+# the equation is logit (p) = 24.63 - 1.26 * tarsus
+# this is the inverse logit function. logit function is log (p/(1-p))
+coef <- exp(predict)/(1+exp(predict))
+# Q10
+# this point is equal to the point where the logit function is crossing 0.
+x <-  - coef(z)[1]/coef(z)[2]
+#Q11
+confint (z)
+#Q12
+# In glm the assumption is not only about how residuals obey a function. it's about distribution of data as a hole (residuals also follow that distribution)
+z0 <- glm (data = sparrow, survival ~ 1, family = binomial (link = "logit"))
+anova(z0, z, test = "Chisq")
+# you can don't include the z0 and it still works in this scenario
+# additional
+
+visreg(z, xvar = "tarsus", scale = 'response', rug = FALSE, ylim = c(-.1, 1.1))
+#points(jitter(survival, 0.1) ~ tarsus, data = sparrow, pch = 1, col = "firebrick", lwd = 1.5)
+plot (sparrow$tarsus, fitted (z))
+```
+
+
+
+
+Horseshoe Crabs
+``` {r}
+crab <- read.csv ("D:/courses_2022_sping/Quantitative methods_ Dolph/BIOL_501/data/satellites.csv", strip.white = TRUE)
+str(crab)
+glimpse(crab)
+ggplot (data = crab, aes (x = width.cm , y = nsatellites))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+# checking if distribution of data is poisson
+crab %>% group_by(width.cm) %>% 
+  summarize (sd_nsat = sd (nsatellites))
+
+
+z1 <- glm (data = crab, nsatellites ~ width.cm, family =  poisson (link = "log"))
+visreg (z1)
+visreg (z1, scale = "response")
+confint (z1)
+```

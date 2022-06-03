@@ -1,0 +1,28 @@
+---
+title: "10_bootstrap"
+author: "Javad"
+date: "3/24/2022"
+output: html_document
+---
+```{r}
+lapply (c("ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg"), library, character.only = TRUE)
+```
+```{r}
+antilles <- read.csv ("data/antilles.csv", strip.white = TRUE)
+hist(as.numeric(unlist(antilles)))
+mean <- mean (antilles$immigration.date)
+median <- median(antilles$immigration.date)
+boot <- sample (unlist(antilles), replace = TRUE)
+hist(as.numeric(unlist(boot)))
+
+median <- vector()
+mean <- vector ()
+
+for (i in 1:10000){
+  boot <- sample (unlist(antilles), replace = TRUE)
+  mean [i] <- mean (boot)
+  median [i] <- median (boot)
+}
+hist (median)
+hist (mean)
+```

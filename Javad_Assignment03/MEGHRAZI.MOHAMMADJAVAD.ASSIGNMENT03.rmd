@@ -1,0 +1,132 @@
+---
+title: "Assignment03"
+author: "Javad Meghrazi"
+date: "4/3/2022"
+output: pdf_document
+---
+```{r, message = FALSE, include = FALSE}
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg", "bbmle", "kableExtra"), library, character.only = TRUE)
+```
+## Introduction
+In this article, we want to investigate the underlying genetics of oviposition preference in two host races of planthopper *Nilaparvate nugens*. As a quantitative trait, the observed variation in the trait could be attributed to 1) additive genetic variance ($V_A$), which is related to the alleles who have an effect on the trait regardless of the genetic background, 2) dominance genetic variance ($V_D$), which is determined by the dominance coefficient of the alleles contributing to this trait (if heterozygote's phenotype for a locus is exactly equal to the mean of two homozygotes, then $V_D$ should be equal to 0), and 3) interaction genetic variance ($V_I$) which explains the effect of genetic background on the effect of each allele on phenotype (taking into account the effect of all possible interactions that different loci may have with each other). These 3 together explain the genetic variance ($V_G$) that is present in a trait and also there is some variance that is due to environmental factors ($V_E$) and is not inheritable. These variances have an additive effect on the total variance that we observe in a trait in the following way:
+$$ V_{total} = V_G + V_E$$
+$$ V_G = V_A + V_D + V_I$$
+The goal of the following analysis is to understand the amount of variance that could be attributed to each of the $V_A$, $V_D$, and $V_E$. In the assignment description, it implies that we want to know if the genome proportion, dominance and interactions play a role in the trait, but I think when it comes to quantitative traits, the underlying genetics is usually complex and there is some $V_D$ and $V_I$ as well as $V_A$. For me, the question is how much are these variances and I'll consider them as 0 if their contribution is so small that my data is not enough to have a precise estimate of their importance. To perform this task, first, we need to calculate the genomic proportion that each line inherits from one of the pure lines as a measure of additive genetic variance ($V_A$) and calculate the frequency of heterozygotes in that line to see if dominance can explain any of the observed patterns (because heterozygotes are the only place where the effect of dominance can show itself).
+
+## Summary of the data
+In the following graph and table, you can see the distribution, mean, and sd of preference for different genotypes. Genotypes are arranged according to the order of mean preference. As you can see the highest preference is for rice and the lowest is for leer. F1 Hybrids of these two lines have intermediate levels of preference which is what we usually expect. Also, the hybrids of F1 and each of the lines have intermediate preferences compared to the preference of F1 and that line. What is interesting is that F2 hybrids have higher preferences than F1 which could tell us something about the underlying genetics (Probably genetic interactions) and we should investigate it later. Also, F2 hybrids have a higher variance than F1 hybrids but that's something that we expect based on mendelian genetics.
+
+```{r}
+hoppers <- read.csv ("D:/courses_2022_sping/Quantitative methods_ Dolph/BIOL_501/Javad_Assignment03/hopper.csv") # reading the data
+hoppers$genotype <- factor (hoppers$genotype, levels = c("leer", 'bl', 'f1', 'br', 'f2', 'rice')) # changing the order of genotypes in a way that
+#they are in the same order as their mean preference 
+ggplot (data = hoppers, aes (x = genotype, y = preference))+ # ploting the data
+  geom_boxplot()+
+  theme_classic()+ 
+  labs (title = "Oviposition preference for different genotypes", caption = "bl is the hybrid of f1 and leer and br is the hybrid of f1 and rice")+
+  theme (plot.title = element_text(hjust = 0.5, size = 14),    # Center title position and size
+    plot.subtitle = element_text(hjust = 0.5),            # Center subtitle
+    plot.caption = element_text(hjust = 0, face = "italic"))# move caption to the left)
+```
+```{r}
+hoppers <- hoppers %>% mutate (genome_proportion = case_when(genotype == "rice" ~ 1,
+                                                             genotype == "leer" ~ 0, 
+                                                             genotype %in% c("f1", "f2") ~ 0.5,
+                                                             genotype == "br" ~ 0.75,
+                                                             genotype == "bl" ~ 0.25)) %>% # adding the genome proportion variable
+  mutate (dominance = case_when(genotype == "rice" ~ 0,
+                                genotype == "leer" ~ 0, 
+                                genotype %in% c("f1") ~ 1,
+                                genotype %in% c("br","bl","f2") ~ 0.5)) # adding the dominance effect variable
+
+hoppers %>% group_by(genotype) %>% # creating the table
+  summarise (mean = mean(preference) %>% round(digits = 2), sd = sd(preference) %>% round(digits = 2)) %>% 
+  kable(caption = "Oviposition preference of different genotypes") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+## Models:
+First I create a linear model to explain preference only based on genome proportion
+```{r}
+gm_genome <- lm (data = hoppers, preference ~ genome_proportion) # a inear model only based on genome prorportion
+summary (gm_genome) 
+```
+Results of the summary show that genome proportion can explain 8.19% of the variation in the data (adjusted R-squared = 0.0819) and it's an estimate of $V_A$. Also, this model estimates the effect size of genome proportion on preference to be 1.33. (Standard errors are in the summary results but I don't include them in the text)
+
+
+Next, I create a linear model to explain preference based on genome proportion and dominance
+```{r}
+gm_genome_dom <- lm(data = hoppers, preference ~ genome_proportion + dominance) # a linear model based on genome proportion and dominance effect
+summary (gm_genome_dom)
+```
+Results of the summary show that genome proportion and dominance effect together can explain 8.12% of the variation in the data (adjusted R-squared = 0.0812) and it's an estimate of $V_A + V_D$. Technically it shouldn't be less than $V_A$ but the fact that it's a bit smaller than the previously calculated $V_A$ shows that $V_D$ is a small number. The estimate of effect size of genome proportion is 1.29 and for dominance it's -0.13. (Standard errors are in the summary results but I don't include them in the text)
+
+
+Next, I make a linear model to explain preference based on genotypes 
+```{r}
+gm_interaction <- lm (data = hoppers, preference ~ genotype) # a linear model based on genotype
+summary (gm_interaction)
+```
+Results of the summary show that genotype can explain 11.14% of the variation in the data (adjusted R-squared = 0.114) and it's an estimate of $V_G$. Because the grouping variable is also genotype, this model can explain all the variation that is attributable to genetics ($V_G$) (which is also all of the variation among different groups). The unexplained variation is mainly due to environmental factors ($V_E$). Even though this model explains a larger proportion of observed variance than the other two models, we need to use a model selection algorithm to compare the models. First I should decide whether I want to use BIC or AIC.
+
+
+## Why I prefer to use AIC over BIC
+I know that AIC and BIC have different underlying assumptions, but I think the most useful approach when we want to decide to use one is to look at what they really do instead of looking at their assumptions. Both AIC and BIC work by looking at the likelihood of the occurrence of the results, but they penalize adding parameters in a different way. AIC considers a constant penalty for adding each parameter while BIC multiplies the number of parameters by the natural logarithm of sample size. What BIC does is very effective when there are some explanatory variables that might be totally irrelevant (specifically in cases when we have many candidate explanatory variables). Under that scenario, if we use AIC the number of present parameters in the best model increases as we increase the sample size that we have. It happens because when we have a larger sample size, we can have a better estimate of a larger number of parameters and so the model chosen by AIC will have more parameters, However, if there are parameters in the dataset that might be irrelevant, if we have a very large sample size, there is a good chance that AIC includes those parameters in the best model and we end up over-fitting. On the other hand, BIC penalizes the addition of parameters more heavily when there is a large sample size and there is a lower chance of over-fitting (but a higher chance of under-fitting! it's a trade-off). 
+
+In this case, the studied trait is a quantitative trait and our explanatory variables are genotype, the proportion of genome received from a line (an indicator of shared additive genetic variance), and dominance. As I explained before, I believe when we are dealing with a quantitative trait, the underlying genetics should be complex and there is always some level of additive genetic elements, dominance and genetic interaction present. The question is how important those components (additive, dominance, and genetic interaction) are and whether our sample size is large enough to give us a reliable measure of effect size of each of the three components or not. Therefore, AIC should be used because if BIC is used, it'll only look for strong effects and if there is a small contribution by genetic interaction or dominance, it won't capture it. On the other hand, there is no chance of over-fitting with AIC as we know that all explanatory variables are important. 
+
+
+```{r}
+# calculating AIC for 3 models and comparing them 
+comparison <- data.frame(models  = c ("gm_genome", "gm_genome_dom","gm_interaction"),
+                         AIC = c(AIC(gm_genome), AIC (gm_genome_dom), AIC (gm_interaction))) %>% 
+  mutate (deltaAIC = AIC - min (AIC))
+comparison %>%   kable(caption = "Comparison of different models") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+Based on the results the model with genotypes is the best model since it has the lowest AIC score and as the difference in AIC of this model and 2 other models is more than 10, we can say that the data strongly supports this model compared to the others. It's predictable that the model based on genotypes would be better in AIC because genotype is the grouping variable and it can explain all of the genetic variance. One may think that results are suggesting that all of the genetic variance could be attributed to interaction but that's not correct. I think in this case we need a 4th model which explains the result based on genome_proportion and then tries to explain the remaining genetic variation by adding genotypes. I'll explain it further.
+
+
+## The reason that I included the 4thh model (genome_proportion + genotype)
+In this data genotype is the grouping variable and therefore if we add it as an explanatory variable, it can explain all of the variance that exists among different groups. There is no doubt that the model including the genotype will be the best model (though if there is no significant interaction model based on genome proportion would be closely good). However, by looking at the parameter estimates of the model based on the genotype we cannot have an idea of the effect size of genetic interactions. Therefore if we want to know the effect of genetic interactions, we should have a model that tries to first explain the variation using genome proportion as much as possible and then try to explain the remaining variation using genotypes. Even though both of the models (genotype and genome proportion + genotype) will have the same AIC (because genotype is the grouping variable and there will not be any unexplained between-group variance), the parameter estimates from the genome proportion + genotype model give us a more accurate estimate of the strength of genetic interactions.
+
+## The reason that I included a null model (intercept only)
+As the models based on genotypes and genome_proportion + genotype are going to give us the best fit, we should make a decision about including genome_proportion. To be able to know if genome proportion is significantly improving the model, we should compare a model only based on genome proportion to a model based on an intercept. If it has a much better AIC score, then it's a good idea to choose the genome_proportion + genotype model. 
+
+```{r}
+gm_null <- (lm (data = hoppers, preference ~ 1)) # a linear model that fits preference based on an intercept
+gm_genome_int <- lm (data = hoppers, preference ~ genome_proportion + genotype) # a linear model that first fits a line based on genome_proportion and then add effect of interactions by adding genotypes
+
+```
+
+```{r}
+# calculating AIC for 5 models and comparing them 
+comparison <- data.frame(models  = c ("gm_null","gm_genome", "gm_genome_dom","gm_interaction", "gm_genome_int"),
+                         AIC = c(AIC(gm_null), AIC(gm_genome), AIC (gm_genome_dom), AIC (gm_interaction), AIC (gm_genome_int))) %>% 
+  mutate (deltaAIC = AIC - min (AIC))
+comparison %>%   kable(caption = "Comparison of different models") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+As we expect genome_proportion + genotypes model similarly fits the data as the model based on genotypes. Also, the model based on genome proportion is much better than the null model and it shows that it's important to have genome proportion in the final model. So I'm going to choose genome_proportion + genotype model as my final model.
+```{r}
+summary(gm_genome_int)
+```
+Results of the summary show that genotype can explain 11.14% of the variation in the data (adjusted R-squared = 0.114) and it's an estimate of $V_G$. We previously have an estimate of $V_A$ (8.19%) and we know that the model with genome proportion is much better than the model with only an intercept. So we can say that genome proportion is an important parameter and we can find an estimate for its effect size from the summary (the estimate is 1.51). The remaining variance (2.95%) could be attributed to genetic interactions ($V_I$) because we know from AIC analysis that a model with interactions is better supported than a model only based on genome proportion. Estimates of genotype effect sizes are an indicator of the amount of interaction present for each genotype. As you can see the estimate is close to 0 for all genotypes except for F2. That makes sense because interactions arise between different loci and F2 is the genotype where there is heterogeneity in the origin of alleles in different loci. I mean in one locus both alleles may have come from rice and in another locus, they both may be from leer, and in another locus we may have one from each. Therefore, it's where we expect to observe the effect of interactions and we do (estimated effect size: 0.48).
+
+Here I'm goiong to visualize the model fit
+```{r}
+visreg (gm_genome_int) 
+```
+
+## Comparison with conventional null hypothesis testing
+If I wanted to take a conventional null hypothesis approach, I should have used a step-wise algorithm for the addition of different terms (genome_proportion, dominance, and genotype) to my model and that can increase the type 1 error because of the multiple testing issue. Then, if I wanted to adjust the alpha to avoid an increase in type 1 error, the type 2 error would have increased. Overall, model selection is superior to null hypothesis testing. provides higher power and also is more precise.
+
+## checking the assumptions of all models
+```{r}
+plot (gm_genome)
+plot (gm_genome_dom)
+plot (gm_genome_int)
+plot (gm_interaction)
+```
+In all 4 models, the assumptions are met.  
+                                                             

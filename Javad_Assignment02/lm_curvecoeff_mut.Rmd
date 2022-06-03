@@ -1,0 +1,127 @@
+---
+title: "Effect of metal stress on growth dynamics of yeast"
+author: "Javad Meghrazi"
+date: "3/11/2022"
+output: pdf_document
+---
+
+## Background
+Evolution can provide more than one way to deal with an environmental stress. It has always been a matter of debate that how diverse these evolutionary strategies could possibly be. Recently in Dr. Otto's lab at UBC, growth dynamics of multiple strains of *S.cerevisiae* was investigated in semi-lethal concentration of multiple metals. The tested strains had been originally evolved to grow under copper stress (Gerstein et al. 2015). Genome of all the strains have been fully sequenced and their important mutations were found. 
+
+I'm trying to make mathematical models to provide a framework to explain the change in growth dynamics of yeasts. Based on the models, there are two main reasons that cells struggle in high concentration of metals: 1- they should spend energy to pump out the metal out of cytoplasm and 2- they have to deal with damages caused by Reactive Oxygen species produced under metal stress. I believe the relative importance of these two pathways are reflected in the relative change of two main parameters that could be extracted from the curves; growth rate (r) and carrying capacity (k). As the growth of the yeasts are mainly restricted by lack of sugar when they reach the stationary phase of growth curve, k is a measure of how efficient cells are converting the fuels into biomass. The relative importance of the first pathway is expected to be inversely proportional to k. On the other hand, both pathways could potentially affect r. Overall, the relative change in the k and r could tell us about the relative importance of each pathway. Also by looking at how different mutations are changing r and k we can have a rough idea of how they are helping the cells to deal with metal stress. 
+
+One limitation is that there are couple of assumptions that I don't if they are well supported or not:
+1- growth is mainly limited by lack of nutrients when yeasts enter stationary phase.
+2- These two pathways are the main pathways and the second pathway don't significantly change k
+
+
+## Analysis
+In this report, I'm trying to find that how stress from different metals alters the k and what is the effect of different mutation of evolved strains on k. I have previously extracted r and k from the data of growth curves and here I'm going to make linear model with k as response variable and mutations and metals as explanatory variables.
+
+
+```{r, message = FALSE, include = FALSE}
+# library the packages
+lapply (c("ggplot2","tidyverse","ape", "binom", "car", "emmeans", "lmerTest", "metafor", "MuMIn", "pwr", "visreg"), library, character.only = TRUE)
+```
+```{r}
+# importing the data of coefficients extracted from the curves
+curves_analysis <- read.csv("D:/YeastMetal/YeastMetal/analyzed_data/curves_analysis.csv") %>% 
+  filter (strain != "blank")
+
+# importing the data of mutations that each strain has + making the name of
+# strains consistent across two datasets
+CBMmut <- read.csv ("D:/YeastMetal/YeastMetal/raw_data/Cupper_lines/CupLineMut.csv") %>% 
+  mutate (strain = case_when(Line == "wt" ~ "OLY008",
+                           Line == "cbm44" ~ "CBM44h",
+                           !(Line %in% c("wt", "cbm44")) ~ casefold(Line, upper = TRUE) )) %>% 
+  select (strain, name) %>% 
+  rename (mutation = name)
+
+# some lines have more than one mutation and I'm turning those into multiple
+# rows of data that each have 1 mutation. The analysis becomes simpler but
+# the it artificially increases the sample size (but there are very few lines
+# with multiple mutations so it shouldn't be a big problem)
+# joining the two datasets
+curve_mut <- CBMmut %>% right_join(curves_analysis) 
+
+# some rows have very low k (k < 0.08) or don't have r and should be
+# filtered because the parameters extracted from those rows are not reliable.
+# These are usually the experiments where there was no significant population
+# growth (OD_change < 0.08). This makes the result of analysis biased because
+# for example in cadmium there are many data points where k is small because
+# there is almost no growth, but those data points are eliminated. There is
+# no clear way solvethis problem because if we want to keep those data, the
+# estimates of k that we have from them is not reliable.
+curve_mut <- curve_mut %>% 
+  filter (OD_change > 0.08, k > 0.08 ) %>% 
+# measures of r are not always reliable in this dataset. there are two
+# measures of r (r15 and r10) and if their difference is high, our data is
+# not reliable. here we are changing infinite values of r to NA and
+# calculating rdif as a measure of robustness of r. and only keeping those
+# whose rdiff is less than 0.2
+  mutate (r10 = case_when(is.infinite(r10) == FALSE ~ r10 )) %>% 
+  mutate (r15 = case_when(is.infinite(r15) == FALSE ~ r15 )) %>%
+  mutate (rdif = r10 - r15) %>% 
+  filter (rdif < 0.3) %>% 
+# creating a new column for concentration and removing "cont1" and "little1"
+# values from conc column. Because we are not interested in that data
+  filter (! conc %in% c("cont1", "little1", "cont2")) %>% 
+# the data for concentration of metals and the type of metal is in the same
+# column so we have to separate them  
+  mutate (concentration = case_when( conc != "YPAD" ~ substr (conc, nchar (conc),nchar(conc)), 
+                                     conc == "YPAD" ~ "1")) %>% 
+  mutate (metal = case_when(conc != "YPAD" ~ substr (conc, 1 ,nchar(conc) -1), 
+                                     conc == "YPAD" ~ conc))
+
+```
+
+``` {r}
+# this plot gives a general idea of variation of r (r10) and k in differnt 
+# metals and how different mutations have changed these values. 
+ggplot (data = curve_mut, aes (x = k, y = r10, color = mutation))+
+  geom_point()+
+  facet_wrap(~ metal)
+
+# a linear model of k based with two explanatory variables: 1- metal 
+# 2- mutation. Because each variable has multiple categories and the data is
+# limited, the interaction term is not added
+k_lm <- lm (data = curve_mut, k ~ metal + mutation)
+visreg(k_lm)
+summary (k_lm)
+```
+The diagrams show the mean and distribution of k for each category. Also summary table is showing the estimates of means of each category (in relation to intercept). In order to check the significance of the results, ANOVA should be done. 
+```{r}
+anova (k_lm)
+
+```
+Results show that both variables have significant effects on k. Also we should check the assumptions:
+```{r}
+plot (k_lm)
+```
+The QQ plot shows a significant deviation of residuals from normal distribution. The reason in this case is some strains have significantly higher K than others and this difference is not necessarily captured in the mutations that we monitor. So maybe if we chose strains instead of mutation as out explanatory variable, we get better results.
+
+```{r}
+k_line_lm <- lm (data = curve_mut, k ~ metal + strain)
+visreg(k_line_lm)
+summary (k_line_lm)
+```
+The diagrams show the mean and distribution of k for each category. Also summary table is showing the estimates of means of each category (in relation to intercept). In order to check the significance of the results, ANOVA should be done.
+```{r}
+anova (k_line_lm)
+```
+Results show that both variables have significant effects on k. Also we should check the assumptions:
+```{r}
+plot (k_line_lm)
+```
+The QQ plot is better now. Even though the distribution of residuals is not completely normal now but we can't do anything about it because the transformation of k is not very meaningful. The underlying reason of violation is that there are still other fixed effect explanatory variables (like interaction of mutation and metals) and random effects (like replicates of the experiment) that should be accounted for later.
+
+## Conclusion
+
+In this report we are not testing an specific hypothesis because our study is exploratory. Results suggest that that both the metal and the mutation are affecting the carrying capacity reached. When we run this analysis by mutation as one of the categorical variables the distribution of residuals is very different from normal but if we replace mutation with strain, this distribution will be more like normal. It suggests that there is some variation in the genetic background of different strains that is not captured in the mutations that we monitored. Looking at the relation ship of k with different strains suggests that for most of the strains k is very similar, except 3 of them which have significantly high k. This suggests that patterns that we observed in the first analysis (where we had mutation as one of the explanatory variables) are not reliable because maybe these three strain accidentally have some mutations and create a false pattern in the results of the first analysis which is independent of the true effect of those mutations. The individual effect of each mutation on k is not easily inferable from this data.
+
+## comments from Sally
+1- variation in k that is observed in different metals could be simply because of different metals having different ODs at the beginning. I don't think so (Sally was not sure but she sent me something). later I checked OD_0 for different metals and it was not so different (which supports me)
+2- she introduced couple of different ways to calculate k and r which I should think about
+3- She told me that my results are biased for metals where there was no growth in many experiments. 
+4- the relationship between k and r is intuitive.
+

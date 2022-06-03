@@ -1,0 +1,28 @@
+Analysis of original graph: 3.5/5
+Quality and analysis of new graph: 3/5
+R code: 5/5
+
+11.5/15
+
+Good description of study background
+Good identification of key issues with the original graph
+The slope and confidence interval are useful additions
+Removing some of the clutter on the graph (colours, etc.)
+  improves focus on the main pattern
+
+
+Explain why the addition of a slope and confidence interval
+  improves visualization of the main pattern and explain
+  why the original figure is ineffective at showing the
+  lack of association between the two variables
+The conclusions argued aren't easy to see in comparison
+  of the two plots. Clarify in particular how the second
+  plot shows the role of other mutations, given that these
+  are not represented on the figure. If only one plot was
+  intended to be the focus of the assignment, state this
+Plots have the same axes but different distributions of 
+  points - explain what points represent in visreg plots.
+  Similarly, differences between the graphs are not 
+  intuitive - consider what could be adjusted to make
+  the differences and therefore overall patterns more
+  clear
